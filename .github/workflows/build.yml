@@ -18,14 +18,76 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build Debug APK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Project Structure
         run: |
           mkdir -p app/src/main/cpp app/src/main/java
-          echo "Android build placeholder"
+          if [ -f "AndroidManifest.xml" ]; then cp AndroidManifest.xml app/src/main/AndroidManifest.xml; fi
+          if [ -f "CMakeLists.txt" ]; then cp CMakeLists.txt app/src/main/cpp/; fi
+          if [ -f "native-lib.cpp" ]; then cp native-lib.cpp app/src/main/cpp/; fi
 
-      - name: Upload Artifact
+          echo 'include(":app")' > settings.gradle
+
+          cat << 'EOF' > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath "com.android.tools.build:gradle:8.2.0"
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.example.immersiveaudio'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.example.immersiveaudio"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+                  externalNativeBuild {
+                      cmake { cppFlags "" }
+                  }
+              }
+              externalNativeBuild {
+                  cmake {
+                      path "src/main/cpp/CMakeLists.txt"
+                      version "3.22.1"
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+
+          gradle wrapper
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/
-          
+          path: app/build/outputs/apk/debug/app-debug.apk
