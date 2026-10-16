@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(immersive_dsp)
+add_library(immersive_dsp SHARED native-lib.cpp)
+find_library(log-lib log)
+target_link_libraries(immersive_dsp ${log-lib})
